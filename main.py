@@ -82,23 +82,28 @@ def get_load_power(message):
         bot.register_next_step_handler(message, get_load_power)
 
 
+def create_inline_keyboard():
+    markup = types.InlineKeyboardMarkup()  # Создаем объект InlineKeyboardMarkup для клавиатуры
+    buttons = []  # Создаем пустой список для хранения кнопок
+    for conductor in conductors.keys():  # Перебираем элементы из словаря conductors
+        # Создаем кнопку с текстом проводника и callback_data равным имени проводника
+        button = types.InlineKeyboardButton(conductor, callback_data=conductor)
+        buttons.append(button)  # Добавляем кнопку в список buttons
+    row_width = 4  # Задаем количество кнопок в каждой строке
+    # Разбиваем кнопки на строки, каждая строка содержит row_width (в данном случае, 4) кнопки
+    for i in range(0, len(buttons), row_width):
+        # Создаем строку кнопок, передавая ей кнопки из списка buttons с использованием среза
+        markup.row(*buttons[i:i + row_width])
+    return markup
+
+
 def get_power_factor(message):
     """Функция для получения значения косинуса фи"""
     try:
         power_factor = float(message.text)
         if 0 <= power_factor <= 1:
             user_data[message.chat.id]["power_factor"] = power_factor
-            markup = types.InlineKeyboardMarkup()  # Создаем объект InlineKeyboardMarkup для клавиатуры
-            buttons = []  # Создаем пустой список для хранения кнопок
-            for conductor in conductors.keys():  # Перебираем элементы из словаря conductors
-                # Создаем кнопку с текстом проводника и callback_data равным имени проводника
-                button = types.InlineKeyboardButton(conductor, callback_data=conductor)
-                buttons.append(button)  # Добавляем кнопку в список buttons
-            row_width = 4  # Задаем количество кнопок в каждой строке
-            # Разбиваем кнопки на строки, каждая строка содержит row_width (в данном случае, 4) кнопки
-            for i in range(0, len(buttons), row_width):
-                # Создаем строку кнопок, передавая ей кнопки из списка buttons с использованием среза
-                markup.row(*buttons[i:i + row_width])
+            markup = create_inline_keyboard()
             # Отправляем сообщение с клавиатурой на чат
             bot.send_message(message.chat.id, "Выберите проводник:", reply_markup=markup)
         else:
