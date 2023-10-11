@@ -1,9 +1,9 @@
-import telebot
-from telebot import types
+import configparser
 import json
 import math
-import random
-import configparser
+
+import telebot
+from telebot import types
 
 config = configparser.ConfigParser(empty_lines_in_values=False, allow_no_value=True)
 config.read("setting/config.ini")  # Чтение файла
@@ -25,8 +25,7 @@ def handler(event, context):
 with open('provod.json', 'r', encoding='utf-8') as file:
     conductors = json.load(file)
 
-# Словарь для хранения временных данных пользователей
-user_data = {}
+user_data = {}  # Словарь для хранения временных данных пользователей
 
 
 @bot.message_handler(commands=['start'])
@@ -89,10 +88,18 @@ def get_power_factor(message):
         power_factor = float(message.text)
         if 0 <= power_factor <= 1:
             user_data[message.chat.id]["power_factor"] = power_factor
-            markup = types.InlineKeyboardMarkup()
-            for conductor in conductors.keys():
+            markup = types.InlineKeyboardMarkup()  # Создаем объект InlineKeyboardMarkup для клавиатуры
+            buttons = []  # Создаем пустой список для хранения кнопок
+            for conductor in conductors.keys():  # Перебираем элементы из словаря conductors
+                # Создаем кнопку с текстом проводника и callback_data равным имени проводника
                 button = types.InlineKeyboardButton(conductor, callback_data=conductor)
-                markup.add(button)
+                buttons.append(button)  # Добавляем кнопку в список buttons
+            row_width = 4  # Задаем количество кнопок в каждой строке
+            # Разбиваем кнопки на строки, каждая строка содержит row_width (в данном случае, 4) кнопки
+            for i in range(0, len(buttons), row_width):
+                # Создаем строку кнопок, передавая ей кнопки из списка buttons с использованием среза
+                markup.row(*buttons[i:i + row_width])
+            # Отправляем сообщение с клавиатурой на чат
             bot.send_message(message.chat.id, "Выберите проводник:", reply_markup=markup)
         else:
             bot.send_message(message.chat.id, "Значение косинуса фи должно быть от 0 до 1 включительно.")
@@ -104,7 +111,7 @@ def get_power_factor(message):
 
 @bot.callback_query_handler(func=lambda call: call.data in conductors.keys())
 def choose_conductor(call):
-    """Обработчик выбора проводника из инлайн-клавиатуры"""
+    """Обработчик выбора проводника из Inline-клавиатуры"""
     user_data[call.message.chat.id]["conductor"] = call.data
     calculate_losses(call.message.chat.id)
 
@@ -146,7 +153,7 @@ def calculate_losses(chat_id):
     bot.send_message(chat_id, result_message, reply_markup=markup)
 
 
-@bot.message_handler(func=lambda message: message.text in ["Начать расчет заново", "Выити в главное меню"])
+@bot.message_handler(func=lambda message: message.text in ["Начать расчет заново", "Выйти в главное меню"])
 def handle_buttons(message):
     """Обработчик нажатия на кнопки"""
     if message.text == "Начать расчет заново":
@@ -154,5 +161,6 @@ def handle_buttons(message):
         calculate_loss(message)
     elif message.text == "Выйти в главное меню":
         start(message)
+
 
 bot.infinity_polling()
