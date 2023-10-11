@@ -5,12 +5,11 @@ import math
 import random
 import configparser
 
-
 config = configparser.ConfigParser(empty_lines_in_values=False, allow_no_value=True)
 config.read("setting/config.ini")  # Чтение файла
-bot_token = config.get('BOT_TOKEN', 'BOT_TOKEN')  # Получение токена
+API_TOKEN = config.get('BOT_TOKEN', 'BOT_TOKEN')  # Получение токена
 
-bot = telebot.TeleBot(bot_token, threaded=False)
+bot = telebot.TeleBot(API_TOKEN, threaded=False)
 
 
 # Cloud Function Handler
@@ -48,8 +47,8 @@ def calculate_loss(message):
     bot.register_next_step_handler(message, get_voltage)
 
 
-# Функция для получения напряжения линии
 def get_voltage(message):
+    """Функция для получения напряжения линии"""
     try:
         voltage = float(message.text)
         user_data[message.chat.id] = {"voltage": voltage}
@@ -60,8 +59,8 @@ def get_voltage(message):
         bot.register_next_step_handler(message, get_voltage)
 
 
-# Функция для получения длины линии
 def get_length(message):
+    """Функция для получения длины линии"""
     try:
         length = float(message.text)
         user_data[message.chat.id]["length"] = length
@@ -72,8 +71,8 @@ def get_length(message):
         bot.register_next_step_handler(message, get_length)
 
 
-# Функция для получения мощности нагрузки
 def get_load_power(message):
+    """Функция для получения мощности нагрузки"""
     try:
         load_power = float(message.text)
         user_data[message.chat.id]["load_power"] = load_power
@@ -84,8 +83,8 @@ def get_load_power(message):
         bot.register_next_step_handler(message, get_load_power)
 
 
-# Функция для получения значения косинуса фи
 def get_power_factor(message):
+    """Функция для получения значения косинуса фи"""
     try:
         power_factor = float(message.text)
         if 0 <= power_factor <= 1:
@@ -103,15 +102,15 @@ def get_power_factor(message):
         bot.register_next_step_handler(message, get_power_factor)
 
 
-# Обработчик выбора проводника из инлайн-клавиатуры
 @bot.callback_query_handler(func=lambda call: call.data in conductors.keys())
 def choose_conductor(call):
+    """Обработчик выбора проводника из инлайн-клавиатуры"""
     user_data[call.message.chat.id]["conductor"] = call.data
     calculate_losses(call.message.chat.id)
 
 
-# Функция для расчета потерь на линии и вывода результата
 def calculate_losses(chat_id):
+    """Функция для расчета потерь на линии и вывода результата"""
     data = user_data[chat_id]
     voltage = data["voltage"]
     length = data["length"]
@@ -124,10 +123,10 @@ def calculate_losses(chat_id):
     # Расчет потерь на линии
 
     result = (10 ** 8) * (
-                resistance * power_factor + reactance * math.sin(math.acos(power_factor)) * load_power * length) / (
-                         ((voltage * 1000) ** 2) * power_factor)
+            resistance * power_factor + reactance * math.sin(math.acos(power_factor)) * load_power * length) / (
+                     ((voltage * 1000) ** 2) * power_factor)
     load_tok1 = (load_power) / (voltage * power_factor * math.sqrt(3))
-    result_message = f"Результат расчета потерь на линии:\n"
+    result_message = "Результат расчета потерь на линии:\n"
     result_message += f"Напряжение линии: {voltage:.2f} кВ; \n"
     result_message += f"Нагрузка: {load_power:.2f} кВт; \n"
     result_message += f"Длина линии: {length:.2f} км; \n"
@@ -137,21 +136,23 @@ def calculate_losses(chat_id):
     result_message += f"Рекативное сопротивление проводника: {reactance:.2f} оМ/км; \n"
     result_message += f"Допустимый ток проводника {load_tok:.2f} А; \n"
     result_message += f"Ток нагрузки {load_tok1:.2f} А; \n"
-    result_message += f"Потери состовляют: {result:.2f}%\n"
+    result_message += f"Потери составляют: {result:.2f}%\n"
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     item1 = types.KeyboardButton("Начать расчет заново")
-    item2 = types.KeyboardButton("Выити в главное меню")
+    item2 = types.KeyboardButton("Выйти в главное меню")
     markup.add(item1, item2)
 
     bot.send_message(chat_id, result_message, reply_markup=markup)
 
 
-# Обработчик кнопок "Начать расчет заново" и "Выити в главное меню"
 @bot.message_handler(func=lambda message: message.text in ["Начать расчет заново", "Выити в главное меню"])
 def handle_buttons(message):
+    """Обработчик нажатия на кнопки"""
     if message.text == "Начать расчет заново":
         bot.send_message(message.chat.id, "Расчет потерь на линии")
         calculate_loss(message)
-    elif message.text == "Выити в главное меню":
+    elif message.text == "Выйти в главное меню":
         start(message)
+
+bot.infinity_polling()
