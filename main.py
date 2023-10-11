@@ -5,6 +5,8 @@ import math
 import telebot
 from telebot import types
 
+from keyboards.user_keyboards import create_inline_keyboard, create_reply_keyboard
+
 config = configparser.ConfigParser(empty_lines_in_values=False, allow_no_value=True)
 config.read("setting/config.ini")  # Чтение файла
 API_TOKEN = config.get('BOT_TOKEN', 'BOT_TOKEN')  # Получение токена
@@ -37,10 +39,28 @@ def start(message):
     bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup)
 
 
+@bot.message_handler(func=lambda message: message.text == "Выйти в главное меню")
+def start(message):
+    """Обработчик нажатия на кнопку "Начать расчет заново"."""
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    item = types.KeyboardButton("Расчет потерь на линии")
+    markup.add(item)
+    bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == "Начать расчет заново")
+def restart_calculation(message):
+    """Обработчик нажатия на кнопку "Начать расчет заново"."""
+    markup = create_reply_keyboard()  # ReplyKeyboardMarkup с кнопками 'Начать расчет заново' и 'Выйти в главное меню'
+    bot.send_message(message.chat.id, "Расчет начат заново. Введите параметры для расчета потерь на линии:")
+    bot.send_message(message.chat.id, "Напряжение линии (кВ):", reply_markup=markup)
+    bot.register_next_step_handler(message, get_voltage)
+
+
 @bot.message_handler(func=lambda message: message.text == "Расчет потерь на линии")
 def calculate_loss(message):
     """Обработчик нажатия на кнопку "Расчет потерь на линии"""
-    markup = types.ReplyKeyboardRemove()
+    markup = create_reply_keyboard()  # ReplyKeyboardMarkup с кнопками 'Начать расчет заново' и 'Выйти в главное меню'
     bot.send_message(message.chat.id, "Введите параметры для расчета потерь на линии:")
     bot.send_message(message.chat.id, "Напряжение линии (кВ):", reply_markup=markup)
     bot.register_next_step_handler(message, get_voltage)
@@ -54,8 +74,15 @@ def get_voltage(message):
         bot.send_message(message.chat.id, "Длина линии (км):")
         bot.register_next_step_handler(message, get_length)
     except ValueError:
-        bot.send_message(message.chat.id, "Введите корректное значение напряжения (число):")
-        bot.register_next_step_handler(message, get_voltage)
+        if message.text == "Начать расчет заново":
+            # Если пользователь нажал "Начать расчет заново", начнем расчет заново
+            restart_calculation(message)
+        elif message.text == "Выйти в главное меню":
+            # Если пользователь нажал "Выйти в главное меню", возвращаемся в главное меню
+            start(message)
+        else:
+            bot.send_message(message.chat.id, "Введите корректное значение напряжения (число):")
+            bot.register_next_step_handler(message, get_voltage)
 
 
 def get_length(message):
@@ -66,8 +93,15 @@ def get_length(message):
         bot.send_message(message.chat.id, "Мощность нагрузки (кВт):")
         bot.register_next_step_handler(message, get_load_power)
     except ValueError:
-        bot.send_message(message.chat.id, "Введите корректное значение длины линии (число):")
-        bot.register_next_step_handler(message, get_length)
+        if message.text == "Начать расчет заново":
+            # Если пользователь нажал "Начать расчет заново", начнем расчет заново
+            restart_calculation(message)
+        elif message.text == "Выйти в главное меню":
+            # Если пользователь нажал "Выйти в главное меню", возвращаемся в главное меню
+            start(message)
+        else:
+            bot.send_message(message.chat.id, "Введите корректное значение длины линии (число):")
+            bot.register_next_step_handler(message, get_length)
 
 
 def get_load_power(message):
@@ -78,23 +112,15 @@ def get_load_power(message):
         bot.send_message(message.chat.id, "Введите значение косинуса фи (от 0 до 1 включительно):")
         bot.register_next_step_handler(message, get_power_factor)
     except ValueError:
-        bot.send_message(message.chat.id, "Введите корректное значение мощности нагрузки (число):")
-        bot.register_next_step_handler(message, get_load_power)
-
-
-def create_inline_keyboard():
-    markup = types.InlineKeyboardMarkup()  # Создаем объект InlineKeyboardMarkup для клавиатуры
-    buttons = []  # Создаем пустой список для хранения кнопок
-    for conductor in conductors.keys():  # Перебираем элементы из словаря conductors
-        # Создаем кнопку с текстом проводника и callback_data равным имени проводника
-        button = types.InlineKeyboardButton(conductor, callback_data=conductor)
-        buttons.append(button)  # Добавляем кнопку в список buttons
-    row_width = 4  # Задаем количество кнопок в каждой строке
-    # Разбиваем кнопки на строки, каждая строка содержит row_width (в данном случае, 4) кнопки
-    for i in range(0, len(buttons), row_width):
-        # Создаем строку кнопок, передавая ей кнопки из списка buttons с использованием среза
-        markup.row(*buttons[i:i + row_width])
-    return markup
+        if message.text == "Начать расчет заново":
+            # Если пользователь нажал "Начать расчет заново", начнем расчет заново
+            restart_calculation(message)
+        elif message.text == "Выйти в главное меню":
+            # Если пользователь нажал "Выйти в главное меню", возвращаемся в главное меню
+            start(message)
+        else:
+            bot.send_message(message.chat.id, "Введите корректное значение мощности нагрузки (число):")
+            bot.register_next_step_handler(message, get_load_power)
 
 
 def get_power_factor(message):
@@ -103,15 +129,22 @@ def get_power_factor(message):
         power_factor = float(message.text)
         if 0 <= power_factor <= 1:
             user_data[message.chat.id]["power_factor"] = power_factor
-            markup = create_inline_keyboard()
+            markup = create_inline_keyboard(conductors)
             # Отправляем сообщение с клавиатурой на чат
             bot.send_message(message.chat.id, "Выберите проводник:", reply_markup=markup)
         else:
             bot.send_message(message.chat.id, "Значение косинуса фи должно быть от 0 до 1 включительно.")
             bot.register_next_step_handler(message, get_power_factor)
     except ValueError:
-        bot.send_message(message.chat.id, "Введите корректное значение косинуса фи (число от 0 до 1):")
-        bot.register_next_step_handler(message, get_power_factor)
+        if message.text == "Начать расчет заново":
+            # Если пользователь нажал "Начать расчет заново", начнем расчет заново
+            restart_calculation(message)
+        elif message.text == "Выйти в главное меню":
+            # Если пользователь нажал "Выйти в главное меню", возвращаемся в главное меню
+            start(message)
+        else:
+            bot.send_message(message.chat.id, "Введите корректное значение косинуса фи (число от 0 до 1):")
+            bot.register_next_step_handler(message, get_power_factor)
 
 
 @bot.callback_query_handler(func=lambda call: call.data in conductors.keys())
@@ -138,34 +171,21 @@ def calculate_losses(chat_id):
             resistance * power_factor + reactance * math.sin(math.acos(power_factor)) * load_power * length) / (
                      ((voltage * 1000) ** 2) * power_factor)
     load_tok1 = (load_power) / (voltage * power_factor * math.sqrt(3))
-    result_message = "Результат расчета потерь на линии:\n"
-    result_message += f"Напряжение линии: {voltage:.2f} кВ; \n"
-    result_message += f"Нагрузка: {load_power:.2f} кВт; \n"
-    result_message += f"Длина линии: {length:.2f} км; \n"
-    result_message += f"Косинус фи: {power_factor:.2f}; \n"
-    result_message += f"Проводник: {conductor}:\n"
-    result_message += f"Активное сопротивление проводника: {resistance:.2f} оМ/км; \n"
-    result_message += f"Рекативное сопротивление проводника: {reactance:.2f} оМ/км; \n"
-    result_message += f"Допустимый ток проводника {load_tok:.2f} А; \n"
-    result_message += f"Ток нагрузки {load_tok1:.2f} А; \n"
-    result_message += f"Потери составляют: {result:.2f}%\n"
+    result_message = ("Результат расчета потерь на линии:\n\n"
+                      f"Напряжение линии:<u> {voltage:.2f} кВ</u>;\n"
+                      f"Нагрузка:<u> {load_power:.2f} кВт</u>;\n"
+                      f"Длина линии:<u> {length:.2f} км</u>;\n"
+                      f"Косинус фи:<u> {power_factor:.2f}</u>;\n"
+                      f"Проводник:<u> {conductor}</u>;\n"
+                      f"Активное сопротивление проводника:<u> {resistance:.2f} оМ/км</u>;\n"
+                      f"Рекативное сопротивление проводника:<u> {reactance:.2f} оМ/км</u>;\n"
+                      f"Допустимый ток проводника<u> {load_tok:.2f} А</u>;\n"
+                      f"Ток нагрузки<u> {load_tok1:.2f} А</u>;\n"
+                      f"Потери составляют:<u> {result:.2f}%</u>\n")
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item1 = types.KeyboardButton("Начать расчет заново")
-    item2 = types.KeyboardButton("Выйти в главное меню")
-    markup.add(item1, item2)
+    markup = create_reply_keyboard()  # ReplyKeyboardMarkup с кнопками 'Начать расчет заново' и 'Выйти в главное меню'
 
-    bot.send_message(chat_id, result_message, reply_markup=markup)
-
-
-@bot.message_handler(func=lambda message: message.text in ["Начать расчет заново", "Выйти в главное меню"])
-def handle_buttons(message):
-    """Обработчик нажатия на кнопки"""
-    if message.text == "Начать расчет заново":
-        bot.send_message(message.chat.id, "Расчет потерь на линии")
-        calculate_loss(message)
-    elif message.text == "Выйти в главное меню":
-        start(message)
+    bot.send_message(chat_id, result_message, reply_markup=markup, parse_mode='HTML')
 
 
 bot.infinity_polling()
