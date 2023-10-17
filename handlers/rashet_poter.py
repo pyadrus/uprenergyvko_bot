@@ -13,9 +13,10 @@ from system.bot_config import dp, bot
 with open('setting/provod.json', 'r', encoding='utf-8') as file:
     conductors = json.load(file)
 
-# Load the list of authorized user IDs from a JSON file
+# Загрузка списка идентификаторов авторизованных пользователей из JSON-файла
 with open('setting/authorized_users.json', 'r') as auth_file:
     authorized_users = json.load(auth_file)
+
 
 class MyStates(StatesGroup):
     GET_VOLTAGE = State()
@@ -50,6 +51,7 @@ async def restart_calculation(message: types.Message, state: FSMContext):
         await MyStates.GET_VOLTAGE.set()
     else:
         await message.answer("У вас нет доступа к этому боту.")
+
 
 @dp.message_handler(lambda message: message.text == "Расчет потерь на линии")
 async def calculate_loss(message: types.Message):
@@ -210,7 +212,9 @@ async def calculate_losses(message: types.Message, state: FSMContext):
     power_factor = data["power_factor"]
     resistance, reactance, load_tok = conductors[conductor]
     # Расчет потерь на линии
-    result = load_power*(power_factor*resistance+reactance*((1-power_factor**2)**0.5))*reactance*length/(10*voltage**2)
+    result = load_power * (
+                power_factor * resistance + reactance * ((1 - power_factor ** 2) ** 0.5)) * reactance * length / (
+                         10 * voltage ** 2)
     load_tok1 = (load_power) / (voltage * power_factor * math.sqrt(3))
     result_message = ("Результат расчета потерь на линии:\n\n"
                       f"Напряжение линии:<u> {voltage:.2f} кВ</u>;\n"
